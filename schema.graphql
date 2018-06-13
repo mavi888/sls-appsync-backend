@@ -1,0 +1,7 @@
+type Query {
+	helloWorld(consumer_key: String, consumer_secret: String): String!
+}
+
+schema {
+	query: Query
+}

@@ -2,6 +2,7 @@ service: sls-appsync-backend
 
 plugins:
    - serverless-appsync-plugin
+   - serverless-pseudo-parameters
 
 provider:
   name: aws
@@ -11,6 +12,31 @@ provider:
 functions:
   graphql:
     handler: handler.graphql
+
+custom:
+  accountId: #{AWS::AccountId}
+  appSync:
+    name: sls-appsync-api
+    authenticationType: AMAZON_COGNITO_USER_POOLS
+    userPoolConfig:
+      awsRegion:  us-east-1
+      defaultAction: ALLOW
+      userPoolId:  { Ref: CognitoUserPool } 
+    mappingTemplates:
+      - dataSource: awsLambdaDataSource
+        type: Query #Query, Mutation, Subscription
+        field: helloWorld
+        request: "helloWorld-request-mapping-template.txt"
+        response: "helloWorld-response-mapping-template.txt"
+    schema: # defaults schema.graphql
+    serviceRole: "AppSyncServiceRole"
+    dataSources:
+      - type: AWS_LAMBDA
+        name: awsLambdaDataSource
+        description: 'Lambda DataSource'
+        config:
+          lambdaFunctionArn: { Fn::GetAtt: [GraphqlLambdaFunction, Arn] } # Where GraphqlLambdaFunction is the lambda function cloudformation resource created by serverless for the serverless function named graphql
+          serviceRoleArn: { Fn::GetAtt: [AppSyncLambdaServiceRole, Arn] }
 
 resources:
   Resources:
@@ -112,3 +138,28 @@ resources:
                     - "cognito-sync:*"
                     - "cognito-identity:*"
                   Resource: "*"
+    # AppSync lambda role
+    AppSyncLambdaServiceRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+        RoleName: "Lambda-${self:custom.appSync.serviceRole}"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service:
+                  - "appsync.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Policies:
+          - PolicyName: "Lambda-${self:custom.appSync.serviceRole}-Policy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "lambda:invokeFunction"
+                  Resource:
+                    - "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-dev-graphql"
+                    - "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-dev-graphql:*"

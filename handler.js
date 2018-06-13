@@ -1,16 +1,21 @@
 'use strict';
 
-module.exports.graphql = (event, context, callback) => {
-	const response = {
-		statusCode: 200,
-		body: JSON.stringify({
-			message: 'Go Serverless v1.0! Your function executed successfully!',
-			input: event
-		})
-	};
+exports.graphql = (event, context, callback) => {
+	console.log('Received event {}', JSON.stringify(event, 3));
 
-	callback(null, response);
+	const consumerKey = event.arguments.consumer_key;
+	const consumerSecret = event.arguments.consumer_secret;
 
-	// Use this code if you don't use the http event with the LAMBDA-PROXY integration
-	// callback(null, { message: 'Go Serverless v1.0! Your function executed successfully!', event });
+	console.log('Got an Invoke Request.');
+	switch (event.field) {
+		case 'helloWorld': {
+			callback(null, 'Hello world');
+			break;
+		}
+
+		default: {
+			callback(`Unknown field, unable to resolve ${event.field}`, null);
+			break;
+		}
+	}
 };
